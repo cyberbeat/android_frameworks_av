@@ -224,6 +224,8 @@ cc_library {
     defaults: [ "libmedia_defaults" ],
 
     srcs: [
+        // kminilte: stock audio HAL blob links against AudioParameter in libmedia
+        "AudioParameter.cpp",
         "IDataSource.cpp",
         "BufferingSettings.cpp",
         "mediaplayer.cpp",
@@ -260,6 +262,10 @@ cc_library {
         "StringArray.cpp",
         "NdkMediaFormatPriv.cpp",
         "NdkMediaErrorPriv.cpp",
+        // kminilte: stock hwcomposer blob needs WFDService from libmedia
+        "IWFDService.cpp",
+        "WFDService.cpp",
+        "WFDServiceListener.cpp",
     ],
 
     aidl: {

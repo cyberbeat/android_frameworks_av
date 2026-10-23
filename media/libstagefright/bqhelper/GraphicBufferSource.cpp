@@ -711,11 +711,15 @@ bool GraphicBufferSource::fillCodecBuffer_l() {
     // is queued after the specified start time
     if (mSkipFramesBeforeNs < 0LL || item.mTimestampNs >= mSkipFramesBeforeNs) {
         // if start time is set, offset time stamp by start time
+        int64_t origTsNs = item.mTimestampNs;
         if (mSkipFramesBeforeNs > 0) {
             item.mTimestampNs -= mSkipFramesBeforeNs;
         }
 
         int64_t timeUs = item.mTimestampNs / 1000;
+        ALOGV("GBS: frame submitted origTs=%lldns skipBefore=%lldns adjustedTs=%lldns (%lldus)",
+              (long long)origTsNs, (long long)mSkipFramesBeforeNs,
+              (long long)item.mTimestampNs, (long long)timeUs);
         if (mFrameDropper != NULL && mFrameDropper->shouldDrop(timeUs)) {
             ALOGV("skipping frame (%lld) to meet max framerate", static_cast<long long>(timeUs));
             // set err to OK so that the skipped frame can still be saved as the lastest frame

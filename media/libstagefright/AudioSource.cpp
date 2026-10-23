@@ -326,27 +326,20 @@ void AudioSource::signalBufferReturned(MediaBufferBase *buffer) {
 }
 
 status_t AudioSource::dataCallback(const AudioRecord::Buffer& audioBuffer) {
-    int64_t timeUs, position, timeNs;
-    ExtendedTimestamp ts;
-    ExtendedTimestamp::Location location;
-    const int32_t usPerSec = 1000000;
+    int64_t timeUs;
 
-    if (mRecord->getTimestamp(&ts) == OK &&
-            ts.getBestTimestamp(&position, &timeNs, ExtendedTimestamp::TIMEBASE_MONOTONIC,
-            &location) == OK) {
-        // Use audio timestamp.
-        timeUs = timeNs / 1000 -
-                (position - mNumFramesSkipped -
-                mNumFramesReceived + mNumFramesLost) * usPerSec / mSampleRate;
-    } else {
-        // This should not happen in normal case.
-        ALOGW("Failed to get audio timestamp, fallback to use systemclock");
-        timeUs = systemTime() / 1000LL;
-        // Estimate the real sampling time of the 1st sample in this buffer
-        // from AudioRecord's latency. (Apply this adjustment first so that
-        // the start time logic is not affected.)
-        timeUs -= mRecord->latency() * 1000LL;
-    }
+    // On Exynos 3470 (kminilte), AudioRecord::getTimestamp() returns a kernel
+    // ALSA timestamp that is refreshed at hardware-pointer sync time, not at
+    // actual ADC sample time.  The position-based correction in the original
+    // formula only accounts for ~30 ms of the ~256 ms capture pipeline latency
+    // (period buffer + AudioFlinger resampling 48 kHz -> 8 kHz + transport),
+    // producing audio PTS that are ~226 ms too early and breaking AV sync.
+    //
+    // The fallback path (systemTime - latency) approximates the real capture
+    // time of the first sample in this buffer much more accurately and has
+    // been verified to produce correct AV sync on this device.
+    timeUs = systemTime(SYSTEM_TIME_MONOTONIC) / 1000ll;
+    timeUs -= mRecord->latency() * 1000LL;
 
     ALOGV("dataCallbackTimestamp: %" PRId64 " us", timeUs);
     Mutex::Autolock autoLock(mLock);
